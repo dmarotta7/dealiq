@@ -35,79 +35,87 @@ const DEFAULTS = {
 }
 
 // Build evaluation inputs from disclosed listing financials
-// This ensures the math is always internally consistent
+// Key principle: use 60-65% expense ratios and NO owner_sal add-back
+// The AI's cash_flow is already the seller's discretionary earnings
 function buildInputs(businessType, listing) {
   const defaults = DEFAULTS[businessType]
   const price = listing.asking_price || defaults.price
   const annual_revenue = listing.annual_revenue || 0
-  const cash_flow = listing.cash_flow || 0
 
   if (businessType === 'carwash') {
     if (annual_revenue > 0) {
-      // Back-calculate from annual revenue
-      const mem_revenue = annual_revenue * 0.45  // ~45% from memberships
-      const retail_revenue = annual_revenue * 0.50
-      const members = Math.round(mem_revenue / 12 / 30)  // assume $30/mo avg
-      const mem_price = 30
-      const retail_cars = Math.round(retail_revenue / 12 / 12)  // assume $12 avg ticket
-      const retail_price = 12
-      // Expenses: target 45% of revenue
-      const total_exp = Math.round(annual_revenue * 0.45)
+      // Industry reality: expenses = 60-65% of revenue
+      const total_exp = Math.round(annual_revenue * 0.62)
+      const mem_revenue = Math.round(annual_revenue * 0.50)
+      const retail_revenue = Math.round(annual_revenue * 0.45)
+      const members = Math.round(mem_revenue / 12 / 32)
+      const retail_cars = Math.round(retail_revenue / 12 / 13)
       return {
         ...defaults,
-        members, mem_price, retail_cars, retail_price, other_rev: Math.round(annual_revenue * 0.05 / 12),
+        members,
+        mem_price: 32,
+        retail_cars,
+        retail_price: 13,
+        other_rev: Math.round(annual_revenue * 0.05 / 12),
         labor: Math.round(total_exp * 0.40),
-        chem: Math.round(total_exp * 0.22),
+        chem: Math.round(total_exp * 0.15),
         util: Math.round(total_exp * 0.18),
-        rent: Math.round(total_exp * 0.10),
-        maint: Math.round(total_exp * 0.05),
+        rent: Math.round(total_exp * 0.15),
+        maint: Math.round(total_exp * 0.07),
         mktg: Math.round(total_exp * 0.03),
         insur: Math.round(total_exp * 0.02),
         overhead: 0,
-        owner_sal: cash_flow > 0 ? Math.round(annual_revenue * 0.08) : defaults.owner_sal,
-        personal: 0, onetime: 0,
-        price, equip_res: Math.round(price * 0.01),
+        // No owner_sal — cash_flow from listing already reflects real earnings
+        owner_sal: 0, personal: 0, onetime: 0,
+        price,
+        equip_res: Math.round(price * 0.01),
+        dp_pct: 20, rate: 7.5, term: 10,
       }
     }
-    return { ...defaults, price }
+    return { ...defaults, price, owner_sal: 0, personal: 0, onetime: 0 }
   }
 
   if (businessType === 'laundromat') {
     if (annual_revenue > 0) {
+      // Laundromat: expenses 58-65% of revenue (utilities are massive)
+      const total_exp = Math.round(annual_revenue * 0.62)
       const weekly_rev = Math.round(annual_revenue / 52)
-      // Laundromat expenses: utilities ~35%, rent ~22%, labor ~15%, rest ~8%
-      const total_exp = Math.round(annual_revenue * 0.58)
       return {
         ...defaults,
-        weekly_rev, vending: Math.round(weekly_rev * 0.04),
-        utilities: Math.round(total_exp * 0.38),
-        rent: Math.round(total_exp * 0.25),
-        labor: Math.round(total_exp * 0.18),
-        supplies: Math.round(total_exp * 0.10),
-        maint: Math.round(total_exp * 0.06),
-        insur: Math.round(total_exp * 0.02),
+        weekly_rev,
+        vending: Math.round(weekly_rev * 0.04),
+        washers: defaults.washers,
+        dryers: defaults.dryers,
+        equip_age: defaults.equip_age,
+        utilities: Math.round(total_exp * 0.42),
+        rent: Math.round(total_exp * 0.28),
+        labor: Math.round(total_exp * 0.16),
+        supplies: Math.round(total_exp * 0.08),
+        maint: Math.round(total_exp * 0.04),
+        insur: Math.round(total_exp * 0.01),
         overhead: Math.round(total_exp * 0.01),
-        owner_sal: cash_flow > 0 ? Math.round(annual_revenue * 0.08) : defaults.owner_sal,
-        personal: 0, onetime: 0,
-        price, equip_res: Math.round(price * 0.04),
+        owner_sal: 0, personal: 0, onetime: 0,
+        price,
+        equip_res: Math.round(price * 0.04),
+        dp_pct: 20, rate: 7.5, term: 10,
       }
     }
-    return { ...defaults, price }
+    return { ...defaults, price, owner_sal: 0, personal: 0, onetime: 0 }
   }
 
   if (businessType === 'storage') {
     if (annual_revenue > 0) {
-      // Storage: typically 100-300 units, expenses 38-42% of revenue
-      const units = listing.units || defaults.total_units
+      // Self-storage: expenses 38-42% of revenue
+      const total_exp = Math.round(annual_revenue * 0.40)
+      const units = defaults.total_units
       const occupancy = listing.occupancy || 87
       const avg_rent = Math.round(annual_revenue / 12 / (units * occupancy / 100))
-      const total_exp = Math.round(annual_revenue * 0.40)
       return {
         ...defaults,
         total_units: units,
         occupancy,
-        avg_rent: Math.max(avg_rent, 60),
-        climate_rent: Math.round(Math.max(avg_rent, 60) * 1.35),
+        avg_rent: Math.max(avg_rent, 65),
+        climate_rent: Math.round(Math.max(avg_rent, 65) * 1.35),
         other_income: Math.round(annual_revenue * 0.03 / 12),
         taxes: Math.round(total_exp * 0.28),
         insurance: Math.round(total_exp * 0.18),
@@ -116,7 +124,9 @@ function buildInputs(businessType, listing) {
         maintenance: Math.round(total_exp * 0.08),
         marketing: Math.round(total_exp * 0.04),
         other_opex: 0,
-        price, capex: Math.round(price * 0.006),
+        price,
+        capex: Math.round(price * 0.005),
+        dp_pct: 25, rate: 6.75, term: 25,
       }
     }
     return { ...defaults, price }
@@ -124,15 +134,18 @@ function buildInputs(businessType, listing) {
 
   if (businessType === 'apartment') {
     if (annual_revenue > 0) {
+      // Apartment: expenses 45-50% of EGI
       const gpr = annual_revenue
-      const vacancy = Math.round(gpr * 0.07)  // 7% vacancy
-      const other_income = Math.round(gpr * 0.04)
+      const vacancy = Math.round(gpr * 0.07)
+      const other_income = Math.round(gpr * 0.03)
       const egi = gpr - vacancy + other_income
-      const total_exp = Math.round(egi * 0.47)  // 47% expense ratio
+      const total_exp = Math.round(egi * 0.47)
       return {
         ...defaults,
-        gpr, vacancy,
-        concessions: 0, bad_debt: Math.round(gpr * 0.005),
+        gpr,
+        vacancy,
+        concessions: 0,
+        bad_debt: Math.round(gpr * 0.005),
         other_income,
         taxes: Math.round(total_exp * 0.22),
         insurance: Math.round(total_exp * 0.12),
@@ -142,7 +155,7 @@ function buildInputs(businessType, listing) {
         utilities: Math.round(total_exp * 0.12),
         other_opex: Math.round(total_exp * 0.06),
         price,
-        capex_per_unit: listing.units ? Math.round(price * 0.005 / listing.units) : defaults.capex_per_unit,
+        dp_pct: 25, rate: 6.75, term: 30,
       }
     }
     return { ...defaults, price }
@@ -154,7 +167,7 @@ function buildInputs(businessType, listing) {
 async function searchListings(state, businessType) {
   const typeLabels = {
     carwash: 'car wash',
-    laundromat: 'laundromat coin-operated',
+    laundromat: 'coin-operated laundromat',
     storage: 'self-storage facility',
     apartment: 'multifamily apartment building'
   }
@@ -166,32 +179,22 @@ async function searchListings(state, businessType) {
     apartment: 'LoopNet.com and Crexi.com'
   }
 
-  // Revenue ranges by business type to guide realistic listings
+  // Revenue should be roughly 20-40% of asking price for realistic multiples
   const revenueGuide = {
-    carwash: 'annual revenue $300K-$2M, asking price $500K-$4M',
-    laundromat: 'annual revenue $80K-$400K, asking price $150K-$800K',
-    storage: 'annual revenue $200K-$1.5M, asking price $1M-$8M',
-    apartment: 'annual rent $150K-$2M (GPR), asking price $1M-$15M'
+    carwash: 'annual revenue is typically 25-50% of asking price (e.g. $750K asking = $200-380K revenue). Asking prices $300K-$3M.',
+    laundromat: 'annual revenue is typically 30-60% of asking price (e.g. $400K asking = $120-240K revenue). Asking prices $150K-$1M.',
+    storage: 'NOI is typically 6-9% of asking price (e.g. $2M asking = $120-180K NOI). Annual revenue 12-18% of asking price. Asking prices $800K-$8M.',
+    apartment: 'NOI (cap rate) is 5-8% of asking price. GPR is typically 10-16% of asking price. Asking prices $500K-$10M.'
   }
 
-  const prompt = `List 5 realistic ${typeLabels[businessType]} businesses currently for sale in ${state} based on your knowledge of ${sources[businessType]} listings.
+  const prompt = `List 5 realistic ${typeLabels[businessType]} businesses for sale in ${state} based on market knowledge from ${sources[businessType]}.
 
-Typical range: ${revenueGuide[businessType]}
+CRITICAL: ${revenueGuide[businessType]}
 
-For each listing return:
-- name: business name or generic descriptor
-- city: specific city in ${state}
-- state: "${state}"
-- asking_price: integer in dollars
-- annual_revenue: gross annual revenue as integer (REQUIRED — use realistic market figures)
-- cash_flow: seller's discretionary earnings or NOI as integer
-- description: 2 sentence description
-- key_details: array of 3 key facts (size, equipment age, occupancy, etc)
-- financials_disclosed: true if you have revenue/cashflow data, false if estimated
-- url: empty string
+Return asking_price and annual_revenue that reflect realistic market multiples. Annual revenue must NOT be more than 60% of asking price for businesses.
 
 Return ONLY valid JSON, no markdown:
-{"listings":[{"name":"","city":"","state":"${state}","asking_price":0,"annual_revenue":0,"cash_flow":0,"description":"","key_details":[],"financials_disclosed":true,"url":""}],"search_summary":"","total_found":5}`
+{"listings":[{"name":"Business name","city":"Specific city in ${state}","state":"${state}","asking_price":0,"annual_revenue":0,"cash_flow":0,"description":"2 sentence description of the business","key_details":["3","specific","facts"],"financials_disclosed":true,"url":""}],"search_summary":"Brief summary of market","total_found":5}`
 
   const response = await fetch('/api/claude', {
     method: 'POST',
@@ -199,7 +202,7 @@ Return ONLY valid JSON, no markdown:
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 3000,
-      system: 'You are a business broker with deep knowledge of the US business-for-sale market. Return ONLY valid JSON. Start with { end with }. Use realistic market data.',
+      system: 'You are a business broker. Return ONLY valid JSON. Start with { end with }. Revenue must be realistic relative to asking price — businesses sell at 3-8x earnings, not 1-2x.',
       messages: [{ role: 'user', content: prompt }]
     })
   })
@@ -335,7 +338,6 @@ export default function FindDeals() {
     setEvaluating(listing.name)
 
     try {
-      // Build inputs from listing financials using our own math — don't trust AI to do it
       const inputs = buildInputs(businessType, listing)
 
       let locationData = {}
@@ -356,7 +358,7 @@ export default function FindDeals() {
         inputs,
         evaluation,
         location_data: locationData,
-        notes: `Found via Deal IQ search. ${listing.financials_disclosed ? 'Revenue/cash flow from listing data.' : 'Financials estimated — verify with seller.'}`
+        notes: `Found via Deal IQ search. ${listing.financials_disclosed ? 'Revenue from listing data.' : 'Financials estimated — verify with seller.'}`
       }).select().single()
 
       if (error) throw error
