@@ -104,30 +104,43 @@ function buildInputs(businessType, listing) {
   }
 
   if (businessType === 'storage') {
-    // Always calculate from asking price at 7% cap rate
+    // Calculate from asking price at exactly 7% cap rate
     const target_noi = Math.round(price * 0.07)
-    const target_gross = Math.round(target_noi / 0.60)
     const units = defaults.total_units
     const occupancy = 87
-    // Set climate_units to 0 so evaluateStorage doesn't add extra revenue
-    // avg_rent is calculated to produce exactly target_gross from standard units only
-    const avg_rent = Math.round(target_gross / 12 / (units * occupancy / 100))
-    const total_exp = target_gross - target_noi
+    // avg_rent calculated so net_rent (after vacancy) = target_gross
+    // net_rent = units * avg_rent * 12 * (occupancy/100)
+    // avg_rent = target_noi / 0.60 / (units * 12 * occupancy/100)
+    const target_gross = target_noi / 0.60
+    const avg_rent = Math.round(target_gross / (units * 12 * occupancy / 100))
+    // Actual net_rent after rounding
+    const actual_net_rent = Math.round(units * avg_rent * 12 * occupancy / 100)
+    // Use other_opex as balancing item so NOI = exactly target_noi
+    const base_exp_budget = Math.round(target_gross * 0.40)
+    const taxes = Math.round(base_exp_budget * 0.28)
+    const insurance = Math.round(base_exp_budget * 0.18)
+    const management = Math.round(base_exp_budget * 0.28)
+    const utilities = Math.round(base_exp_budget * 0.14)
+    const maintenance = Math.round(base_exp_budget * 0.08)
+    const marketing = Math.round(base_exp_budget * 0.04)
+    const named_exp = taxes + insurance + management + utilities + maintenance + marketing
+    // other_opex absorbs any rounding so NOI lands at target
+    const other_opex = Math.max(0, actual_net_rent - target_noi - named_exp)
     return {
       ...defaults,
       total_units: units,
       climate_units: 0,
       occupancy,
-      avg_rent: Math.max(avg_rent, 65),
-      climate_rent: Math.max(avg_rent, 65),
-      other_income: Math.round(target_gross * 0.02 / 12),
-      taxes: Math.round(total_exp * 0.28),
-      insurance: Math.round(total_exp * 0.18),
-      management: Math.round(total_exp * 0.28),
-      utilities: Math.round(total_exp * 0.14),
-      maintenance: Math.round(total_exp * 0.08),
-      marketing: Math.round(total_exp * 0.04),
-      other_opex: 0,
+      avg_rent,
+      climate_rent: avg_rent,
+      other_income: 0,
+      taxes,
+      insurance,
+      management,
+      utilities,
+      maintenance,
+      marketing,
+      other_opex,
       price,
       capex: Math.round(price * 0.005),
       dp_pct: 25, rate: 6.75, term: 25,
