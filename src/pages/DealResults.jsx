@@ -72,7 +72,9 @@ function MetricCard({ label, value }) {
 function PriceRecommendation({ ev, deal }) {
   const isCarWash = deal.business_type === 'carwash'
   const isLaundromat = deal.business_type === 'laundromat'
+  const isStorage = deal.business_type === 'storage'
   const isBusinessAcq = isCarWash || isLaundromat
+  const isRealEstate = !isBusinessAcq
   const metrics = ev.metrics || {}
   const recast = ev.recast || {}
   const inputs = deal.inputs || {}
@@ -80,21 +82,12 @@ function PriceRecommendation({ ev, deal }) {
   const askingPrice = inputs.price || 0
   const dp_pct = inputs.dp_pct || (isBusinessAcq ? 20 : 25)
   const rate = inputs.rate || (isBusinessAcq ? 7.5 : 6.75)
-  const term = inputs.term || (isBusinessAcq ? 10 : 30)
+  const term = inputs.term || (isBusinessAcq ? 10 : 25)
 
-  // Core earnings figure
-  const earnings = isBusinessAcq
-    ? (recast.recast_ebitda || 0)
-    : (metrics.noi || 0)
-
-  // Standard market multiple / cap rate targets
+  const earnings = isBusinessAcq ? (recast.recast_ebitda || 0) : (metrics.noi || 0)
   const standardMultiple = isCarWash ? 6 : isLaundromat ? 5 : null
-  const targetCapRate = isBusinessAcq ? null : 0.06
-
-  // Fair market value
-  const fairMarket = isBusinessAcq
-    ? earnings * standardMultiple
-    : earnings / targetCapRate
+  const targetCapRate = isRealEstate ? 0.06 : null
+  const fairMarket = isBusinessAcq ? earnings * standardMultiple : earnings / targetCapRate
 
   // Minimum viable price — where DSCR = 1.25x
   // DSCR = earnings / DS = 1.25 → DS = earnings / 1.25
@@ -226,6 +219,7 @@ export default function DealResults() {
   const exit = ev.exit || {}
   const isCarWash = deal.business_type === 'carwash'
   const isLaundromat = deal.business_type === 'laundromat'
+  const isStorage = deal.business_type === 'storage'
   const isBusinessAcq = isCarWash || isLaundromat
 
   const chartData = ['year1','year2','year3','year4','year5'].map((yr, i) => {
@@ -283,6 +277,17 @@ export default function DealResults() {
             <MetricCard label="Year 1 Cash Flow" value={fmt(metrics.year1_cash_flow)} />
             <MetricCard label="5-yr IRR" value={pct(exit.irr)} />
             <MetricCard label="Equity Multiple" value={xval(exit.equity_multiple)} />
+          </>
+        ) : isStorage ? (
+          <>
+            <MetricCard label="NOI" value={fmt(metrics.noi)} />
+            <MetricCard label="Cap Rate" value={pct(metrics.cap_rate)} />
+            <MetricCard label="Physical Occupancy" value={metrics.physical_occupancy ? metrics.physical_occupancy.toFixed(1) + '%' : '—'} />
+            <MetricCard label="DSCR" value={xval(metrics.dscr)} />
+            <MetricCard label="Cash-on-Cash" value={pct(metrics.cash_on_cash)} />
+            <MetricCard label="Year 1 Cash Flow" value={fmt(metrics.year1_cash_flow)} />
+            <MetricCard label="5-yr IRR" value={pct(exit.irr)} />
+            <MetricCard label="Price / Unit" value={fmt(metrics.price_per_unit)} />
           </>
         ) : (
           <>

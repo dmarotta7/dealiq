@@ -335,8 +335,99 @@ export function evaluateLaundromat(inputs, address) {
   }
 }
 
+export function evaluateStorage(inputs, address) {
+  const {
+    total_units=0, occupancy=0, total_sqft=0, climate_units=0,
+    avg_rent=0, climate_rent=0, other_income=0,
+    taxes=0, insurance=0, management=0, utilities=0, maintenance=0, marketing=0, other_opex=0,
+    price=0, dp_pct=25, rate=6.75, term=25, capex=0,
+    rgrow=3, exit_cap=6.5
+  } = inputs
+
+  const standard_units = total_units - climate_units
+  const occupied_standard = Math.round(standard_units * occupancy / 100)
+  const occupied_climate = Math.round(climate_units * occupancy / 100)
+  const gross_potential_rent = (standard_units * avg_rent + climate_units * climate_rent) * 12
+  const vacancy_loss = gross_potential_rent * (1 - occupancy / 100)
+  const net_rent = gross_potential_rent - vacancy_loss
+  const egi = net_rent + other_income * 12
+  const total_opex = taxes + insurance + management + utilities + maintenance + marketing + other_opex
+  const noi = egi - total_opex
+  const cap_rate = price > 0 ? noi / price : 0
+  const ds = calcDS(price, dp_pct, rate, term)
+  const down_payment = price * dp_pct / 100
+  const year1_cf = noi - ds - capex
+  const coc = down_payment > 0 ? year1_cf / down_payment : 0
+  const dscr = ds > 0 ? noi / ds : 0
+  const price_per_unit = total_units > 0 ? price / total_units : 0
+  const rent_per_sqft = total_sqft > 0 ? (net_rent / 12) / total_sqft : 0
+  const expense_ratio = egi > 0 ? total_opex / egi : 0
+
+  const projection = {}
+  ;['year1','year2','year3','year4','year5'].forEach((yr, i) => {
+    const yr_egi = egi * Math.pow(1 + rgrow / 100, i)
+    const yr_opex = total_opex * Math.pow(1.02, i)
+    const yr_noi = yr_egi - yr_opex
+    projection[yr] = {
+      egi: Math.round(yr_egi), noi: Math.round(yr_noi),
+      debt_service: Math.round(ds), free_cash_flow: Math.round(yr_noi - ds - capex)
+    }
+  })
+
+  const yr5_noi = projection.year5.noi
+  const gross_exit = yr5_noi * (1 + rgrow / 100) / (exit_cap / 100)
+  const sell_costs = gross_exit * 0.06
+  const remaining_loan = loanBal(price, dp_pct, rate, term, 5)
+  const net_proceeds = gross_exit - sell_costs - remaining_loan
+  const cfs = [-down_payment, ...['year1','year2','year3','year4','year5'].map(yr => projection[yr].free_cash_flow)]
+  cfs[5] += net_proceeds
+  const irr = calcIRR(cfs)
+  const total_received = ['year1','year2','year3','year4','year5'].reduce((a, yr) => a + projection[yr].free_cash_flow, 0) + net_proceeds
+  const equity_multiple = down_payment > 0 ? (total_received + down_payment) / down_payment : 0
+
+  const thresholds = [
+    { name: 'Physical Occupancy ≥85%', actual: occupancy.toFixed(1)+'%', target: '≥85%', status: occupancy>=85?'Pass':occupancy>=75?'Warn':'Fail' },
+    { name: 'Cap Rate ≥6%', actual: (cap_rate*100).toFixed(1)+'%', target: '≥6%', status: cap_rate>=0.06?'Pass':cap_rate>=0.05?'Warn':'Fail' },
+    { name: 'DSCR ≥1.25x', actual: dscr.toFixed(2)+'x', target: '≥1.25x', status: dscr>=1.25?'Pass':dscr>=1.0?'Warn':'Fail' },
+    { name: 'Cash-on-Cash ≥8%', actual: (coc*100).toFixed(1)+'%', target: '≥8%', status: coc>=0.08?'Pass':coc>=0.04?'Warn':'Fail' },
+    { name: 'Expense Ratio ≤40%', actual: (expense_ratio*100).toFixed(1)+'%', target: '≤40%', status: expense_ratio<=0.40?'Pass':expense_ratio<=0.50?'Warn':'Fail' },
+  ]
+
+  const passes = thresholds.filter(t => t.status === 'Pass').length
+  const overall = passes >= 4 ? 'Pass' : passes >= 2 ? 'Warn' : 'Fail'
+
+  const red_flags = [], strengths = []
+  if (occupancy < 85) red_flags.push(`Occupancy of ${occupancy}% is below the 85% stabilization threshold — lenders will require lease-up plan`)
+  if (cap_rate < 0.055) red_flags.push(`Cap rate of ${(cap_rate*100).toFixed(1)}% is below market — price is too high for the income`)
+  if (dscr < 1.25) red_flags.push(`DSCR of ${dscr.toFixed(2)}x is below the 1.25x minimum`)
+  if (expense_ratio > 0.50) red_flags.push(`Expense ratio of ${(expense_ratio*100).toFixed(0)}% is high for self-storage — target is under 40%`)
+  if (climate_units > 0) strengths.push(`${climate_units} climate-controlled units at $${climate_rent}/mo — premium pricing improves margins`)
+  if (occupancy >= 85) strengths.push(`Physical occupancy of ${occupancy}% — facility is stabilized`)
+  if (cap_rate >= 0.06) strengths.push(`Cap rate of ${(cap_rate*100).toFixed(1)}% clears the 6% threshold`)
+  if (dscr >= 1.25) strengths.push(`DSCR of ${dscr.toFixed(2)}x clears the minimum`)
+  if (expense_ratio <= 0.35) strengths.push(`Low expense ratio of ${(expense_ratio*100).toFixed(0)}% — well-managed facility`)
+
+  const recommendation = overall==='Pass'
+    ? 'Deal clears key thresholds. Verify rent rolls, lease terms, and deferred maintenance before closing.'
+    : overall==='Warn'
+    ? 'Some thresholds missed. Verify occupancy trend and negotiate on price.'
+    : 'Deal does not meet thresholds at asking price. Occupancy or pricing needs improvement.'
+
+  return {
+    summary: { business_name: 'Self-Storage', business_type: 'Self-Storage', address, evaluation_date: new Date().toLocaleDateString(), unit_count: total_units },
+    revenue: { gross_potential_rent, vacancy_loss, net_rent, other_annual: other_income*12, egi, vacancy_rate: (100-occupancy)/100 },
+    expenses: { taxes, insurance, management, utilities, maintenance, marketing, other: other_opex, total_opex, expense_ratio },
+    deal: { price, down_payment, loan_amount: price*(1-dp_pct/100), annual_debt_service: ds, capex_reserve: capex },
+    metrics: { noi, cap_rate, dscr, year1_cash_flow: year1_cf, cash_on_cash: coc, price_per_unit, rent_per_sqft, physical_occupancy: occupancy },
+    projection,
+    exit: { exit_cap_rate_used: exit_cap/100, year5_noi, gross_exit_value: gross_exit, selling_costs: sell_costs, remaining_loan_balance: remaining_loan, net_proceeds, irr, equity_multiple },
+    verdict: { overall, score: passes*20, thresholds, red_flags, strengths, recommendation }
+  }
+}
+
 export function runEvaluation(businessType, inputs, address) {
-  if (businessType === 'apartment' || businessType === 'storage') return Promise.resolve(evaluateApartment(inputs, address))
+  if (businessType === 'apartment') return Promise.resolve(evaluateApartment(inputs, address))
   if (businessType === 'laundromat') return Promise.resolve(evaluateLaundromat(inputs, address))
+  if (businessType === 'storage') return Promise.resolve(evaluateStorage(inputs, address))
   return Promise.resolve(evaluateCarwash(inputs, address))
 }
