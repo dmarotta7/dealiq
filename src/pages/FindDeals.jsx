@@ -49,14 +49,24 @@ async function searchListings(state, businessType) {
     apartment: 'LoopNet.com, Crexi.com, and Marcus & Millichap listings'
   }
 
+  const inputFields = {
+    carwash: 'members (membership count), mem_price (monthly membership price), retail_cars (retail cars/month), retail_price (avg ticket $), labor, chem (chemicals), util (utilities), rent, maint (maintenance), mktg (marketing), insur (insurance), overhead, owner_sal (owner salary addback), price (asking price)',
+    laundromat: 'weekly_rev (avg weekly revenue), vending (other weekly income), washers, dryers, equip_age (equipment age years), utilities (annual), rent (annual), labor (annual), supplies (annual), maint (annual), insur (annual), overhead (annual), owner_sal (addback), price (asking price)',
+    storage: 'total_units, occupancy (% as number like 87), total_sqft, climate_units, avg_rent ($/unit/mo standard), climate_rent ($/unit/mo climate), other_income ($/mo), taxes (annual), insurance (annual), management (annual), utilities (annual), maintenance (annual), price (asking price)',
+    apartment: 'units (unit count), gpr (gross potential rent annual), vacancy (annual loss $), other_income (annual), taxes (annual), insurance (annual), management (annual), maintenance (annual), utilities (annual), price (asking price)'
+  }
+
   const prompt = `You are a business acquisition deal finder. Based on your knowledge of active business listings and recent market data, provide realistic current listings for ${typeLabels[businessType]} businesses for sale in ${state}.
 
-Use your knowledge of sites like ${sources[businessType]} to provide 4-6 realistic listings that represent what is actually available or recently available in ${state}.
+Use your knowledge of sites like ${sources[businessType]} to provide 4-6 realistic listings representing what is available in ${state}. Use specific cities in ${state}.
 
-For each listing provide realistic details including asking price, location, key business metrics, and description. If you know of specific real listings, use those. Otherwise provide realistic representative listings based on market knowledge.
+For each listing, provide realistic financials that map to these specific input fields:
+${inputFields[businessType]}
 
-Return ONLY this exact JSON with no markdown, no preamble, no explanation:
-{"listings":[{"name":"Business Name","city":"City","state":"${state}","asking_price":0,"annual_revenue":0,"cash_flow":0,"description":"2-3 sentence description","key_details":["detail1","detail2","detail3"],"financials_disclosed":true,"url":"","pre_fill":{"price":0}}],"search_summary":"Brief summary","total_found":4}`
+Return ONLY this exact JSON with no markdown, no preamble:
+{"listings":[{"name":"Business Name","city":"City","state":"${state}","asking_price":0,"annual_revenue":0,"cash_flow":0,"description":"2-3 sentence description","key_details":["detail1","detail2"],"financials_disclosed":true,"url":"","inputs":{}}],"search_summary":"Brief summary","total_found":4}
+
+For the "inputs" object, populate the fields listed above with realistic numbers based on the listing financials. This is critical — these numbers will be used directly in the financial model.`
 
   const response = await fetch('/api/claude', {
     method: 'POST',
@@ -217,9 +227,11 @@ export default function FindDeals() {
 
     try {
       const defaults = DEFAULTS[businessType] || DEFAULTS.carwash
+
+      // Use inputs from AI search if available, otherwise use defaults with asking price
       const inputs = {
         ...defaults,
-        ...(listing.pre_fill || {}),
+        ...(listing.inputs || {}),
         price: listing.asking_price || defaults.price,
       }
 
@@ -241,7 +253,7 @@ export default function FindDeals() {
         inputs,
         evaluation,
         location_data: locationData,
-        notes: `Found via Deal IQ search. ${listing.financials_disclosed ? 'Financials from listing.' : 'Financials estimated from industry averages — verify with seller.'}`
+        notes: `Found via Deal IQ search. ${listing.financials_disclosed ? 'Financials from listing.' : 'Financials estimated — verify with seller.'}`
       }).select().single()
 
       if (error) throw error
