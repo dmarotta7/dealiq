@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import Evaluate from './pages/Evaluate'
 import DealResults from './pages/DealResults'
 import Glossary from './pages/Glossary'
+import FindDeals from './pages/FindDeals'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -31,6 +32,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/evaluate" element={<ProtectedRoute><Evaluate /></ProtectedRoute>} />
         <Route path="/deal/:id" element={<ProtectedRoute><DealResults /></ProtectedRoute>} />
+        <Route path="/find" element={<ProtectedRoute><FindDeals /></ProtectedRoute>} />
         <Route path="/glossary" element={<Glossary />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

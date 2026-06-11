@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { LogOut, PlusCircle, LayoutDashboard, BookOpen } from 'lucide-react'
+import { LogOut, PlusCircle, LayoutDashboard, BookOpen, Search } from 'lucide-react'
 
 export default function Navbar() {
   const { user, signOut } = useAuth()
@@ -31,13 +31,20 @@ export default function Navbar() {
           </Link>
 
           {user ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Link
                 to="/dashboard"
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/dashboard') ? 'bg-[#1a2a45] text-white' : 'text-gray-400 hover:text-white hover:bg-[#1a2a45]'}`}
               >
                 <LayoutDashboard size={15} />
                 <span className="hidden sm:block">Dashboard</span>
+              </Link>
+              <Link
+                to="/find"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/find') ? 'bg-[#1a2a45] text-white' : 'text-gray-400 hover:text-white hover:bg-[#1a2a45]'}`}
+              >
+                <Search size={15} />
+                <span className="hidden sm:block">Find Deals</span>
               </Link>
               <Link
                 to="/glossary"
