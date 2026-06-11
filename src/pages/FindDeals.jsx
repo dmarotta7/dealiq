@@ -60,13 +60,21 @@ async function searchListings(state, businessType) {
 
 Use your knowledge of sites like ${sources[businessType]} to provide 4-6 realistic listings representing what is available in ${state}. Use specific cities in ${state}.
 
-For each listing, provide realistic financials that map to these specific input fields:
+CRITICAL RULES:
+- All numbers must be realistic whole integers — no decimals
+- Revenue and expense numbers must be internally consistent (expenses should be 30-60% of revenue)
+- For car washes: members should be 200-800, mem_price $25-45, retail_cars 800-3000
+- For laundromats: weekly_rev should be $2,000-$8,000 typical
+- For self-storage: occupancy 75-95, avg_rent $75-150/unit/mo
+- For apartments: vacancy typically 5-10% of GPR
+
+For each listing, populate the inputs object with these specific fields:
 ${inputFields[businessType]}
 
 Return ONLY this exact JSON with no markdown, no preamble:
 {"listings":[{"name":"Business Name","city":"City","state":"${state}","asking_price":0,"annual_revenue":0,"cash_flow":0,"description":"2-3 sentence description","key_details":["detail1","detail2"],"financials_disclosed":true,"url":"","inputs":{}}],"search_summary":"Brief summary","total_found":4}
 
-For the "inputs" object, populate the fields listed above with realistic numbers based on the listing financials. This is critical — these numbers will be used directly in the financial model.`
+The inputs object must use only whole numbers. This data feeds directly into a financial model.`
 
   const response = await fetch('/api/claude', {
     method: 'POST',
@@ -229,11 +237,17 @@ export default function FindDeals() {
       const defaults = DEFAULTS[businessType] || DEFAULTS.carwash
 
       // Use inputs from AI search if available, otherwise use defaults with asking price
-      const inputs = {
+      // Sanitize all numeric inputs — round to integers, ensure no fractional values
+      const rawInputs = {
         ...defaults,
         ...(listing.inputs || {}),
         price: listing.asking_price || defaults.price,
       }
+
+      // Round all numeric values to prevent fractional member counts etc
+      const inputs = Object.fromEntries(
+        Object.entries(rawInputs).map(([k, v]) => [k, typeof v === 'number' ? Math.round(v) : v])
+      )
 
       let locationData = {}
       if (listing.city) {
