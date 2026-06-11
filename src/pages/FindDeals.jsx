@@ -104,13 +104,12 @@ function buildInputs(businessType, listing) {
   }
 
   if (businessType === 'storage') {
-    // For storage, work backwards from NOI (cap rate) not gross revenue
-    // Cap NOI at 7.5% of asking price to prevent unrealistic cap rates
-    const raw_noi = listing.cash_flow > 0 ? listing.cash_flow : Math.round(price * 0.07)
-    const target_noi = Math.min(raw_noi, Math.round(price * 0.075))
+    // Always calculate NOI from asking price at 7% cap rate
+    // Never trust the AI's cash_flow for storage — it's unreliable
+    const target_noi = Math.round(price * 0.07)
     const target_gross = Math.round(target_noi / 0.60)
     const units = defaults.total_units
-    const occupancy = listing.occupancy || 87
+    const occupancy = 87
     const avg_rent = Math.round(target_gross / 12 / (units * occupancy / 100))
     const total_exp = target_gross - target_noi
     return {
@@ -134,32 +133,30 @@ function buildInputs(businessType, listing) {
   }
 
   if (businessType === 'apartment') {
-    if (annual_revenue > 0) {
-      // Apartment: expenses 45-50% of EGI
-      const gpr = annual_revenue
-      const vacancy = Math.round(gpr * 0.07)
-      const other_income = Math.round(gpr * 0.03)
-      const egi = gpr - vacancy + other_income
-      const total_exp = Math.round(egi * 0.47)
-      return {
-        ...defaults,
-        gpr,
-        vacancy,
-        concessions: 0,
-        bad_debt: Math.round(gpr * 0.005),
-        other_income,
-        taxes: Math.round(total_exp * 0.22),
-        insurance: Math.round(total_exp * 0.12),
-        management: Math.round(total_exp * 0.18),
-        payroll: Math.round(total_exp * 0.10),
-        maintenance: Math.round(total_exp * 0.20),
-        utilities: Math.round(total_exp * 0.12),
-        other_opex: Math.round(total_exp * 0.06),
-        price,
-        dp_pct: 25, rate: 6.75, term: 30,
-      }
+    // Always calculate from asking price at 6.5% cap rate — never trust AI cash_flow
+    const target_noi = Math.round(price * 0.065)
+    const egi = Math.round(target_noi / 0.53)  // expenses = 47% of EGI
+    const gpr = Math.round(egi / 0.96)  // 4% vacancy + other income nets to EGI
+    const vacancy = Math.round(gpr * 0.07)
+    const other_income = Math.round(gpr * 0.03)
+    const total_exp = egi - target_noi
+    return {
+      ...defaults,
+      gpr,
+      vacancy,
+      concessions: 0,
+      bad_debt: Math.round(gpr * 0.005),
+      other_income,
+      taxes: Math.round(total_exp * 0.22),
+      insurance: Math.round(total_exp * 0.12),
+      management: Math.round(total_exp * 0.18),
+      payroll: Math.round(total_exp * 0.10),
+      maintenance: Math.round(total_exp * 0.20),
+      utilities: Math.round(total_exp * 0.12),
+      other_opex: Math.round(total_exp * 0.06),
+      price,
+      dp_pct: 25, rate: 6.75, term: 30,
     }
-    return { ...defaults, price }
   }
 
   return { ...defaults, price }
