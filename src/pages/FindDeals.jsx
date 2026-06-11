@@ -105,9 +105,10 @@ function buildInputs(businessType, listing) {
 
   if (businessType === 'storage') {
     // For storage, work backwards from NOI (cap rate) not gross revenue
-    // Use cash_flow as NOI if available, otherwise derive from annual_revenue
-    const target_noi = listing.cash_flow > 0 ? listing.cash_flow : Math.round(price * 0.075)
-    const target_gross = Math.round(target_noi / 0.60) // NOI = 60% of gross revenue
+    // Cap NOI at 7.5% of asking price to prevent unrealistic cap rates
+    const raw_noi = listing.cash_flow > 0 ? listing.cash_flow : Math.round(price * 0.07)
+    const target_noi = Math.min(raw_noi, Math.round(price * 0.075))
+    const target_gross = Math.round(target_noi / 0.60)
     const units = defaults.total_units
     const occupancy = listing.occupancy || 87
     const avg_rent = Math.round(target_gross / 12 / (units * occupancy / 100))
@@ -183,7 +184,7 @@ async function searchListings(state, businessType) {
   const revenueGuide = {
     carwash: 'annual revenue is typically 25-50% of asking price (e.g. $750K asking = $200-380K revenue). Asking prices $300K-$3M.',
     laundromat: 'annual revenue is typically 30-60% of asking price (e.g. $400K asking = $120-240K revenue). Asking prices $150K-$1M.',
-    storage: 'NOI should be 6-8% of asking price (e.g. $2M asking = $120-160K NOI). Return NOI as cash_flow. Annual revenue is NOI divided by 0.60 (40% expense ratio). Asking prices $800K-$6M.',
+    storage: 'NOI must be exactly 6-7% of asking price (e.g. $1.85M asking = $111K-$130K NOI). Return NOI as cash_flow. Annual revenue = NOI divided by 0.60. Asking prices $800K-$5M.',
     apartment: 'NOI (cap rate) is 5-8% of asking price. GPR is typically 10-16% of asking price. Asking prices $500K-$10M.'
   }
 
