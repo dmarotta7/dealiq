@@ -183,11 +183,19 @@ function ListingCard({ listing, businessType, onEvaluate, evaluating }) {
 export default function FindDeals() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [state, setState] = useState('South Carolina')
-  const [businessType, setBusinessType] = useState('carwash')
+
+  // Restore last search from session storage
+  const saved = (() => { try { return JSON.parse(sessionStorage.getItem('dealiq_search') || 'null') } catch { return null } })()
+
+  const [state, setState] = useState(saved?.state || 'South Carolina')
+  const [businessType, setBusinessType] = useState(saved?.businessType || 'carwash')
   const [searching, setSearching] = useState(false)
-  const [results, setResults] = useState(null)
+  const [results, setResults] = useState(saved?.results || null)
   const [evaluating, setEvaluating] = useState(null)
+
+  const saveSearch = (s, bt, r) => {
+    try { sessionStorage.setItem('dealiq_search', JSON.stringify({ state: s, businessType: bt, results: r })) } catch {}
+  }
 
   const handleSearch = async () => {
     setSearching(true)
@@ -195,6 +203,7 @@ export default function FindDeals() {
     try {
       const data = await searchListings(state, businessType)
       setResults(data)
+      saveSearch(state, businessType, data)
     } catch (err) {
       toast.error('Search failed. Try again.')
     } finally {
