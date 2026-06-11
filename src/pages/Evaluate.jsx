@@ -5,20 +5,21 @@ import { supabase } from '../lib/supabase'
 import { runEvaluation, pullLocationData } from '../lib/anthropic'
 import CarwashForm, { carwashDefaults } from '../components/evaluator/CarwashForm'
 import ApartmentForm, { apartmentDefaults } from '../components/evaluator/ApartmentForm'
-import { Car, Building2, Waves, Package, MapPin, Sparkles, ChevronRight, AlertCircle } from 'lucide-react'
+import LaundryForm, { laundryDefaults } from '../components/evaluator/LaundryForm'
+import { Car, Building2, Waves, Package, MapPin, Sparkles, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const BUSINESS_TYPES = [
   { id: 'carwash',    label: 'Car Wash',       icon: Car,       desc: 'Express, flex-serve, or full-service washes', color: 'border-blue-200 hover:border-blue-400 bg-blue-50' },
   { id: 'apartment',  label: 'Multifamily',    icon: Building2, desc: 'Apartment buildings, duplexes, portfolio deals', color: 'border-purple-200 hover:border-purple-400 bg-purple-50' },
-  { id: 'laundromat', label: 'Laundromat',     icon: Waves,     desc: 'Coin-op and card laundry businesses', color: 'border-teal-200 hover:border-teal-400 bg-teal-50', soon: true },
+  { id: 'laundromat', label: 'Laundromat',     icon: Waves,     desc: 'Coin-op and card laundry businesses', color: 'border-teal-200 hover:border-teal-400 bg-teal-50' },
   { id: 'storage',    label: 'Self-Storage',   icon: Package,   desc: 'Climate & non-climate controlled facilities', color: 'border-amber-200 hover:border-amber-400 bg-amber-50', soon: true },
 ]
 
 const DEFAULTS = {
   carwash: carwashDefaults,
   apartment: apartmentDefaults,
-  laundromat: carwashDefaults,
+  laundromat: laundryDefaults,
   storage: apartmentDefaults,
 }
 
@@ -199,6 +200,7 @@ export default function Evaluate() {
           <div className="card mb-6">
             {businessType === 'carwash' && <CarwashForm inputs={inputs} onChange={setInputs} />}
             {businessType === 'apartment' && <ApartmentForm inputs={inputs} onChange={(updates) => setInputs(prev => ({ ...prev, ...updates }))} />}
+            {businessType === 'laundromat' && <LaundryForm inputs={inputs} onChange={(updates) => setInputs(prev => ({ ...prev, ...updates }))} />}
           </div>
 
           {/* Notice */}

@@ -1,4 +1,4 @@
-const ANTHROPIC_API = '/api/claude'
+const ANTHROPIC_API = 'http://localhost:3001/api/claude'
 
 function calcDS(price, dpPct, rate, term) {
   const loan = price * (1 - dpPct / 100)
@@ -250,9 +250,93 @@ export async function askDealAssistant(dealData, question, history) {
   }
 }
 
-export function runEvaluation(businessType, inputs, address) {
-  if (businessType === 'apartment' || businessType === 'storage') {
-    return Promise.resolve(evaluateApartment(inputs, address))
+export function evaluateLaundromat(inputs, address) {
+  const {
+    weekly_rev=0, vending=0,
+    washers=0, dryers=0, equip_age=0, equip_value=0,
+    utilities=0, rent=0, labor=0, supplies=0, maint=0, insur=0, overhead=0,
+    owner_sal=0, personal=0, onetime=0,
+    price=0, dp_pct=20, rate=7.5, term=10, equip_res=0,
+    rgrow=3, exit_mult=5
+  } = inputs
+
+  const gross_revenue = (weekly_rev + vending) * 52
+  const total_opex = utilities + rent + labor + supplies + maint + insur + overhead
+  const reported_ebitda = gross_revenue - total_opex
+  const recast_ebitda = reported_ebitda + owner_sal + personal + onetime
+  const ebitda_margin = gross_revenue > 0 ? recast_ebitda / gross_revenue : 0
+  const ds = calcDS(price, dp_pct, rate, term)
+  const down_payment = price * dp_pct / 100
+  const year1_cf = recast_ebitda - ds - equip_res
+  const coc = down_payment > 0 ? year1_cf / down_payment : 0
+  const dscr = ds > 0 ? recast_ebitda / ds : 0
+  const ebitda_multiple = recast_ebitda > 0 ? price / recast_ebitda : 0
+  const revenue_per_machine = (washers + dryers) > 0 ? gross_revenue / (washers + dryers) : 0
+  const utility_pct = gross_revenue > 0 ? utilities / gross_revenue : 0
+
+  const projection = {}
+  ;['year1','year2','year3','year4','year5'].forEach((yr, i) => {
+    const rev = gross_revenue * Math.pow(1 + rgrow / 100, i)
+    const ebitda = rev * (gross_revenue > 0 ? recast_ebitda / gross_revenue : 0)
+    projection[yr] = {
+      revenue: Math.round(rev), ebitda: Math.round(ebitda),
+      debt_service: Math.round(ds), free_cash_flow: Math.round(ebitda - ds - equip_res)
+    }
+  })
+
+  const gross_exit = projection.year5.ebitda * exit_mult
+  const sell_costs = gross_exit * 0.06
+  const remaining_loan = loanBal(price, dp_pct, rate, term, 5)
+  const net_proceeds = gross_exit - sell_costs - remaining_loan
+  const cfs = [-down_payment, ...['year1','year2','year3','year4','year5'].map(yr => projection[yr].free_cash_flow)]
+  cfs[5] += net_proceeds
+  const irr = calcIRR(cfs)
+  const total_received = ['year1','year2','year3','year4','year5'].reduce((a, yr) => a + projection[yr].free_cash_flow, 0) + net_proceeds
+  const equity_multiple = down_payment > 0 ? (total_received + down_payment) / down_payment : 0
+
+  const thresholds = [
+    { name: 'EBITDA Margin ≥25%', actual: (ebitda_margin*100).toFixed(1)+'%', target: '≥25%', status: ebitda_margin>=0.25?'Pass':ebitda_margin>=0.15?'Warn':'Fail' },
+    { name: 'Purchase Multiple ≤5x', actual: ebitda_multiple.toFixed(2)+'x', target: '≤5x', status: ebitda_multiple<=5?'Pass':ebitda_multiple<=7?'Warn':'Fail' },
+    { name: 'DSCR ≥1.25x', actual: dscr.toFixed(2)+'x', target: '≥1.25x', status: dscr>=1.25?'Pass':dscr>=1.0?'Warn':'Fail' },
+    { name: 'Cash-on-Cash ≥15%', actual: (coc*100).toFixed(1)+'%', target: '≥15%', status: coc>=0.15?'Pass':coc>=0.08?'Warn':'Fail' },
+    { name: 'Equipment Age <8 yrs', actual: equip_age+'yrs', target: '<8 yrs', status: equip_age<8?'Pass':equip_age<12?'Warn':'Fail' },
+  ]
+
+  const passes = thresholds.filter(t => t.status === 'Pass').length
+  const overall = passes >= 4 ? 'Pass' : passes >= 2 ? 'Warn' : 'Fail'
+
+  const red_flags = [], strengths = []
+  if (equip_age >= 8) red_flags.push(`Equipment age of ${equip_age} years — machines may need replacement soon ($${equip_value.toLocaleString()} replacement cost)`)
+  if (utility_pct > 0.35) red_flags.push(`Utilities at ${(utility_pct*100).toFixed(0)}% of revenue is high — verify 12 months of actual bills`)
+  if (ebitda_multiple > 6) red_flags.push(`Purchase multiple of ${ebitda_multiple.toFixed(1)}x is above the 5x laundromat benchmark`)
+  if (dscr < 1.25) red_flags.push(`DSCR of ${dscr.toFixed(2)}x is below the 1.25x minimum`)
+  if (labor === 0) strengths.push('Unattended operation — no labor cost improves margins significantly')
+  if (equip_age < 5) strengths.push(`Equipment age of ${equip_age} years — machines are relatively new`)
+  if (ebitda_margin >= 0.30) strengths.push(`Strong EBITDA margin of ${(ebitda_margin*100).toFixed(1)}%`)
+  if (dscr >= 1.25) strengths.push(`DSCR of ${dscr.toFixed(2)}x clears the 1.25x threshold`)
+  if (coc >= 0.15) strengths.push(`Strong cash-on-cash return of ${(coc*100).toFixed(1)}%`)
+
+  const recommendation = overall==='Pass'
+    ? 'Deal clears key thresholds. Verify utility bills and equipment service records before closing.'
+    : overall==='Warn'
+    ? 'Some thresholds missed. Negotiate on price or verify equipment condition and utility costs.'
+    : 'Deal does not meet thresholds at asking price. Equipment age or price needs to improve.'
+
+  return {
+    summary: { business_name: 'Laundromat', business_type: 'Laundromat', address, evaluation_date: new Date().toLocaleDateString() },
+    revenue: { weekly_revenue: weekly_rev + vending, annual_revenue: gross_revenue, gross_revenue },
+    expenses: { utilities, rent, labor, supplies, maintenance: maint, insurance: insur, other: overhead, total_opex },
+    recast: { reported_ebitda, owner_salary_addback: owner_sal, personal_addback: personal, onetime_addback: onetime, recast_ebitda, ebitda_margin },
+    deal: { price, down_payment, loan_amount: price*(1-dp_pct/100), annual_debt_service: ds, equipment_reserve: equip_res },
+    metrics: { dscr, ebitda_multiple, year1_cash_flow: year1_cf, cash_on_cash: coc, revenue_per_machine, utility_pct, equipment_age: equip_age },
+    projection,
+    exit: { exit_multiple_used: exit_mult, year5_ebitda: projection.year5.ebitda, gross_exit_value: gross_exit, selling_costs: sell_costs, remaining_loan_balance: remaining_loan, net_proceeds, irr, equity_multiple },
+    verdict: { overall, score: passes*20, thresholds, red_flags, strengths, recommendation }
   }
+}
+
+export function runEvaluation(businessType, inputs, address) {
+  if (businessType === 'apartment' || businessType === 'storage') return Promise.resolve(evaluateApartment(inputs, address))
+  if (businessType === 'laundromat') return Promise.resolve(evaluateLaundromat(inputs, address))
   return Promise.resolve(evaluateCarwash(inputs, address))
 }

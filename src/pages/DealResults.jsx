@@ -70,30 +70,29 @@ function MetricCard({ label, value }) {
 }
 
 function PriceRecommendation({ ev, deal }) {
-  const isCarWash = deal.business_type === 'carwash' || deal.business_type === 'laundromat'
+  const isCarWash = deal.business_type === 'carwash'
+  const isLaundromat = deal.business_type === 'laundromat'
+  const isBusinessAcq = isCarWash || isLaundromat
   const metrics = ev.metrics || {}
   const recast = ev.recast || {}
   const inputs = deal.inputs || {}
 
   const askingPrice = inputs.price || 0
-  const dp_pct = inputs.dp_pct || (isCarWash ? 20 : 25)
-  const rate = inputs.rate || (isCarWash ? 7.5 : 6.75)
-  const term = inputs.term || (isCarWash ? 10 : 30)
-  const equip_res = inputs.equip_res || inputs.capex_per_unit * (inputs.units || 1) || 0
+  const dp_pct = inputs.dp_pct || (isBusinessAcq ? 20 : 25)
+  const rate = inputs.rate || (isBusinessAcq ? 7.5 : 6.75)
+  const term = inputs.term || (isBusinessAcq ? 10 : 30)
 
   // Core earnings figure
-  const earnings = isCarWash
+  const earnings = isBusinessAcq
     ? (recast.recast_ebitda || 0)
     : (metrics.noi || 0)
 
   // Standard market multiple / cap rate targets
-  const standardMultiple = isCarWash ? 6 : null
-  const minMultiple = isCarWash ? 5 : null
-  const targetCapRate = isCarWash ? null : 0.06
-  const minCapRate = isCarWash ? null : 0.055
+  const standardMultiple = isCarWash ? 6 : isLaundromat ? 5 : null
+  const targetCapRate = isBusinessAcq ? null : 0.06
 
   // Fair market value
-  const fairMarket = isCarWash
+  const fairMarket = isBusinessAcq
     ? earnings * standardMultiple
     : earnings / targetCapRate
 
@@ -132,7 +131,7 @@ function PriceRecommendation({ ev, deal }) {
         <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
           <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Fair market value</p>
           <p className="text-2xl font-black text-blue-800">{fmt(fairMarket)}</p>
-          <p className="text-xs text-blue-600 mt-1">{isCarWash ? `${standardMultiple}x EBITDA` : `${(targetCapRate*100).toFixed(1)}% cap rate`}</p>
+          <p className="text-xs text-blue-600 mt-1">{isCarWash ? '6x EBITDA' : isLaundromat ? '5x EBITDA' : '6.0% cap rate'}</p>
         </div>
         <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
           <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Walk-away price</p>
@@ -225,7 +224,9 @@ export default function DealResults() {
   const recast = ev.recast || {}
   const projection = ev.projection || {}
   const exit = ev.exit || {}
-  const isCarWash = deal.business_type === 'carwash' || deal.business_type === 'laundromat'
+  const isCarWash = deal.business_type === 'carwash'
+  const isLaundromat = deal.business_type === 'laundromat'
+  const isBusinessAcq = isCarWash || isLaundromat
 
   const chartData = ['year1','year2','year3','year4','year5'].map((yr, i) => {
     const y = projection[yr] || {}
@@ -272,7 +273,7 @@ export default function DealResults() {
       <PriceRecommendation ev={ev} deal={deal} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {isCarWash ? (
+        {isBusinessAcq ? (
           <>
             <MetricCard label="Recast EBITDA" value={fmt(recast.recast_ebitda)} />
             <MetricCard label="EBITDA Margin" value={pct(recast.ebitda_margin)} />
