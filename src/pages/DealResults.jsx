@@ -85,14 +85,20 @@ function PriceRecommendation({ ev, deal }) {
   const term = inputs.term || (isBusinessAcq ? 10 : 25)
 
   const earnings = isBusinessAcq ? (recast.recast_ebitda || 0) : (metrics.noi || 0)
-  const standardMultiple = isCarWash ? 6 : isLaundromat ? 5 : null
-  const targetCapRate = isRealEstate ? 0.06 : null
-  const fairMarket = isBusinessAcq ? earnings * standardMultiple : earnings / targetCapRate
 
-  // Minimum viable price — where DSCR = 1.25x
-  // DSCR = earnings / DS = 1.25 → DS = earnings / 1.25
-  // DS = loan * monthlyRate * (1+r)^n / ((1+r)^n - 1) * 12
-  // Solve for price given DS target
+  // Fair market value
+  // Business acquisitions: earnings x standard multiple
+  // Real estate: NOI / 6% cap rate benchmark
+  const standardMultiple = isCarWash ? 6 : isLaundromat ? 5 : null
+  const benchmarkCapRate = 0.06
+  const fairMarket = isBusinessAcq
+    ? earnings * standardMultiple
+    : earnings / benchmarkCapRate
+
+  // Actual cap rate on asking price (real estate only)
+  const impliedCapRate = isRealEstate && askingPrice > 0 ? earnings / askingPrice : null
+
+  // Walk-away price — max price where DSCR = 1.25x
   const targetDS = earnings / 1.25
   const r = rate / 100 / 12
   const n = term * 12
@@ -100,10 +106,14 @@ function PriceRecommendation({ ev, deal }) {
   const dsPerDollar = ltvFactor * (r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1) * 12
   const maxViablePrice = dsPerDollar > 0 ? targetDS / dsPerDollar : 0
 
-  // Target offer = 10% below fair market
-  const targetOffer = fairMarket * 0.90
+  // Target offer:
+  // Business acq: 10% below fair market
+  // Real estate: lower of (10% below fair market) or (asking price — already at/below market)
+  const targetOffer = isRealEstate
+    ? Math.min(fairMarket * 0.90, askingPrice * 0.95)
+    : fairMarket * 0.90
 
-  // Percent gap from asking
+  // Gap: positive = asking is above fair market (overpriced), negative = below (underpriced)
   const gapPct = askingPrice > 0 ? ((askingPrice - fairMarket) / fairMarket * 100) : 0
 
   if (earnings <= 0) return null
@@ -124,12 +134,14 @@ function PriceRecommendation({ ev, deal }) {
         <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
           <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Fair market value</p>
           <p className="text-2xl font-black text-blue-800">{fmt(fairMarket)}</p>
-          <p className="text-xs text-blue-600 mt-1">{isCarWash ? '6x EBITDA' : isLaundromat ? '5x EBITDA' : '6.0% cap rate'}</p>
+          <p className="text-xs text-blue-600 mt-1">
+            {isCarWash ? '6x EBITDA' : isLaundromat ? '5x EBITDA' : '6.0% cap rate benchmark'}
+          </p>
         </div>
         <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
           <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Walk-away price</p>
           <p className="text-2xl font-black text-amber-700">{fmt(maxViablePrice)}</p>
-          <p className="text-xs text-amber-600 mt-1">Max for positive cash flow</p>
+          <p className="text-xs text-amber-600 mt-1">Max price for 1.25x DSCR</p>
         </div>
       </div>
 
@@ -146,16 +158,24 @@ function PriceRecommendation({ ev, deal }) {
             <p className="font-bold text-[#B22234]">{fmt(askingPrice)}</p>
           </div>
           <div>
-            <p className="text-gray-400 text-xs mb-0.5">Fair market</p>
+            <p className="text-gray-400 text-xs mb-0.5">Fair market (6% cap)</p>
             <p className="font-bold text-[#0A1628]">{fmt(fairMarket)}</p>
           </div>
           <div>
             <p className="text-gray-400 text-xs mb-0.5">Dollar gap</p>
-            <p className="font-bold text-[#B22234]">{fmt(askingPrice - fairMarket)}</p>
+            <p className={`font-bold ${askingPrice - fairMarket > 0 ? 'text-[#B22234]' : 'text-green-600'}`}>
+              {fmt(askingPrice - fairMarket)}
+            </p>
           </div>
           <div>
-            <p className="text-gray-400 text-xs mb-0.5">Implied multiple</p>
-            <p className="font-bold text-[#0A1628]">{earnings > 0 ? (askingPrice / earnings).toFixed(1) + 'x' : '—'}</p>
+            <p className="text-gray-400 text-xs mb-0.5">
+              {isRealEstate ? 'Implied cap rate' : 'Implied multiple'}
+            </p>
+            <p className="font-bold text-[#0A1628]">
+              {isRealEstate
+                ? (impliedCapRate !== null ? (impliedCapRate * 100).toFixed(1) + '%' : '—')
+                : (earnings > 0 ? (askingPrice / earnings).toFixed(1) + 'x' : '—')}
+            </p>
           </div>
         </div>
       </div>
