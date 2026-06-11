@@ -17,7 +17,7 @@ function pct(n) {
   if (n === null || n === undefined) return '—'
   const num = Number(n)
   if (isNaN(num)) return '—'
-  return (Math.abs(num) > 1 ? num.toFixed(1) : (num * 100).toFixed(1)) + '%'
+  return (num * 100).toFixed(1) + '%'
 }
 function xval(n) {
   if (n === null || n === undefined || isNaN(Number(n))) return '—'
