@@ -99,9 +99,21 @@ Return ONLY valid JSON with this exact structure:
   })
 
   const data = await response.json()
-  const textBlock = data.content?.find(b => b.type === 'text')
+  
+  // Web search responses can have multiple content blocks
+  // Find the last text block which contains the final JSON response
+  const textBlocks = (data.content || []).filter(b => b.type === 'text')
+  const lastText = textBlocks[textBlocks.length - 1]?.text || '{}'
+  
   try {
-    return JSON.parse((textBlock?.text || '{}').replace(/```json|```/g, '').trim())
+    // Try to extract JSON from the response
+    const cleaned = lastText.replace(/```json|```/g, '').trim()
+    // Find JSON object in the text
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0])
+    }
+    return JSON.parse(cleaned)
   } catch {
     return { listings: [], search_summary: 'Search completed but results could not be parsed.', total_found: 0 }
   }
