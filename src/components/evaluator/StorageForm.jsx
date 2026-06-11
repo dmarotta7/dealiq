@@ -86,3 +86,4 @@ export const storageDefaults = {
   price: 1800000, dp_pct: 25, rate: 6.75, term: 25, capex: 10000,
   rgrow: 3, exit_cap: 6.5,
 }
+// storage enabled Thu Jun 11 11:27:42 EDT 2026
