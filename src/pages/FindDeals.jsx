@@ -104,21 +104,23 @@ function buildInputs(businessType, listing) {
   }
 
   if (businessType === 'storage') {
-    // Always calculate NOI from asking price at 7% cap rate
-    // Never trust the AI's cash_flow for storage — it's unreliable
+    // Always calculate from asking price at 7% cap rate
     const target_noi = Math.round(price * 0.07)
     const target_gross = Math.round(target_noi / 0.60)
     const units = defaults.total_units
     const occupancy = 87
+    // Set climate_units to 0 so evaluateStorage doesn't add extra revenue
+    // avg_rent is calculated to produce exactly target_gross from standard units only
     const avg_rent = Math.round(target_gross / 12 / (units * occupancy / 100))
     const total_exp = target_gross - target_noi
     return {
       ...defaults,
       total_units: units,
+      climate_units: 0,
       occupancy,
       avg_rent: Math.max(avg_rent, 65),
-      climate_rent: Math.round(Math.max(avg_rent, 65) * 1.35),
-      other_income: Math.round(target_gross * 0.03 / 12),
+      climate_rent: Math.max(avg_rent, 65),
+      other_income: Math.round(target_gross * 0.02 / 12),
       taxes: Math.round(total_exp * 0.28),
       insurance: Math.round(total_exp * 0.18),
       management: Math.round(total_exp * 0.28),
