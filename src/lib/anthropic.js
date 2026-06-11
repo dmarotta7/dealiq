@@ -1,4 +1,4 @@
-const ANTHROPIC_API = 'http://localhost:3001/api/claude'
+const ANTHROPIC_API = '/api/claude'
 
 function calcDS(price, dpPct, rate, term) {
   const loan = price * (1 - dpPct / 100)
