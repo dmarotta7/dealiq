@@ -205,7 +205,7 @@ export function evaluateApartment(inputs, address) {
     deal: { price, down_payment, loan_amount: price * (1 - dp_pct / 100), annual_debt_service: ds, capex_reserve: capex },
     metrics: { noi, cap_rate, dscr, year1_cash_flow: year1_cf, cash_on_cash: coc, price_per_unit, grm },
     projection,
-    exit: { exit_cap_rate_used: exit_cap / 100, year5_noi, gross_exit_value: gross_exit, selling_costs: sell_costs, remaining_loan_balance: remaining_loan, net_proceeds, irr, equity_multiple },
+    exit: { exit_cap_rate_used: exit_cap / 100, yr5_noi as year5_noi, gross_exit_value: gross_exit, selling_costs: sell_costs, remaining_loan_balance: remaining_loan, net_proceeds, irr, equity_multiple },
     verdict: { overall, score: passes * 20, thresholds, red_flags, strengths, recommendation }
   }
 }
@@ -420,7 +420,7 @@ export function evaluateStorage(inputs, address) {
     deal: { price, down_payment, loan_amount: price*(1-dp_pct/100), annual_debt_service: ds, capex_reserve: capex },
     metrics: { noi, cap_rate, dscr, year1_cash_flow: year1_cf, cash_on_cash: coc, price_per_unit, rent_per_sqft, physical_occupancy: occupancy },
     projection,
-    exit: { exit_cap_rate_used: exit_cap/100, year5_noi, gross_exit_value: gross_exit, selling_costs: sell_costs, remaining_loan_balance: remaining_loan, net_proceeds, irr, equity_multiple },
+    exit: { exit_cap_rate_used: exit_cap/100, yr5_noi as year5_noi, gross_exit_value: gross_exit, selling_costs: sell_costs, remaining_loan_balance: remaining_loan, net_proceeds, irr, equity_multiple },
     verdict: { overall, score: passes*20, thresholds, red_flags, strengths, recommendation }
   }
 }
