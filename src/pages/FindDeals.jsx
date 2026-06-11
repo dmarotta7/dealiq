@@ -104,32 +104,32 @@ function buildInputs(businessType, listing) {
   }
 
   if (businessType === 'storage') {
-    if (annual_revenue > 0) {
-      // Self-storage: expenses 38-42% of revenue
-      const total_exp = Math.round(annual_revenue * 0.40)
-      const units = defaults.total_units
-      const occupancy = listing.occupancy || 87
-      const avg_rent = Math.round(annual_revenue / 12 / (units * occupancy / 100))
-      return {
-        ...defaults,
-        total_units: units,
-        occupancy,
-        avg_rent: Math.max(avg_rent, 65),
-        climate_rent: Math.round(Math.max(avg_rent, 65) * 1.35),
-        other_income: Math.round(annual_revenue * 0.03 / 12),
-        taxes: Math.round(total_exp * 0.28),
-        insurance: Math.round(total_exp * 0.18),
-        management: Math.round(total_exp * 0.28),
-        utilities: Math.round(total_exp * 0.14),
-        maintenance: Math.round(total_exp * 0.08),
-        marketing: Math.round(total_exp * 0.04),
-        other_opex: 0,
-        price,
-        capex: Math.round(price * 0.005),
-        dp_pct: 25, rate: 6.75, term: 25,
-      }
+    // For storage, work backwards from NOI (cap rate) not gross revenue
+    // Use cash_flow as NOI if available, otherwise derive from annual_revenue
+    const target_noi = listing.cash_flow > 0 ? listing.cash_flow : Math.round(price * 0.075)
+    const target_gross = Math.round(target_noi / 0.60) // NOI = 60% of gross revenue
+    const units = defaults.total_units
+    const occupancy = listing.occupancy || 87
+    const avg_rent = Math.round(target_gross / 12 / (units * occupancy / 100))
+    const total_exp = target_gross - target_noi
+    return {
+      ...defaults,
+      total_units: units,
+      occupancy,
+      avg_rent: Math.max(avg_rent, 65),
+      climate_rent: Math.round(Math.max(avg_rent, 65) * 1.35),
+      other_income: Math.round(target_gross * 0.03 / 12),
+      taxes: Math.round(total_exp * 0.28),
+      insurance: Math.round(total_exp * 0.18),
+      management: Math.round(total_exp * 0.28),
+      utilities: Math.round(total_exp * 0.14),
+      maintenance: Math.round(total_exp * 0.08),
+      marketing: Math.round(total_exp * 0.04),
+      other_opex: 0,
+      price,
+      capex: Math.round(price * 0.005),
+      dp_pct: 25, rate: 6.75, term: 25,
     }
-    return { ...defaults, price }
   }
 
   if (businessType === 'apartment') {
@@ -183,7 +183,7 @@ async function searchListings(state, businessType) {
   const revenueGuide = {
     carwash: 'annual revenue is typically 25-50% of asking price (e.g. $750K asking = $200-380K revenue). Asking prices $300K-$3M.',
     laundromat: 'annual revenue is typically 30-60% of asking price (e.g. $400K asking = $120-240K revenue). Asking prices $150K-$1M.',
-    storage: 'NOI is typically 6-9% of asking price (e.g. $2M asking = $120-180K NOI). Annual revenue 12-18% of asking price. Asking prices $800K-$8M.',
+    storage: 'NOI should be 6-8% of asking price (e.g. $2M asking = $120-160K NOI). Return NOI as cash_flow. Annual revenue is NOI divided by 0.60 (40% expense ratio). Asking prices $800K-$6M.',
     apartment: 'NOI (cap rate) is 5-8% of asking price. GPR is typically 10-16% of asking price. Asking prices $500K-$10M.'
   }
 
