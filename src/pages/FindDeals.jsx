@@ -201,8 +201,8 @@ Return ONLY valid JSON, no markdown:
       model: 'claude-sonnet-4-6',
       max_tokens: 6000,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      system: 'You are a business broker with web search access. Search for real active listings, then return results as valid JSON only. Start response with { and end with }. Never use markdown.',
-      messages: [{ role: 'user', content: prompt }]
+      system: 'You are a business broker with web search access. You MUST respond with ONLY a valid JSON object. No markdown, no text, no explanation. Start with { and end with }.',
+      messages: [{ role: 'user', content: prompt + '\n\nIMPORTANT: Your entire response must be a single valid JSON object starting with { and ending with }. No other text.' }]
     })
   })
 
