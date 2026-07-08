@@ -7,7 +7,7 @@ import { carwashDefaults } from '../components/evaluator/CarwashForm'
 import { apartmentDefaults } from '../components/evaluator/ApartmentForm'
 import { laundryDefaults } from '../components/evaluator/LaundryForm'
 import { storageDefaults } from '../components/evaluator/StorageForm'
-import { Search, MapPin, Sparkles, AlertCircle, ExternalLink, Zap } from 'lucide-react'
+import { Search, MapPin, Sparkles, AlertCircle, ExternalLink, Zap, BookmarkPlus, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const BUSINESS_TYPES = [
@@ -312,6 +312,8 @@ export default function FindDeals() {
   const [searching, setSearching] = useState(false)
   const [results, setResults] = useState(saved?.results || null)
   const [evaluating, setEvaluating] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [searchSaved, setSearchSaved] = useState(false)
 
   const saveSearch = (s, bt, r) => {
     try { sessionStorage.setItem('dealiq_search', JSON.stringify({ state: s, businessType: bt, results: r })) } catch {}
@@ -320,6 +322,7 @@ export default function FindDeals() {
   const handleSearch = async () => {
     setSearching(true)
     setResults(null)
+    setSearchSaved(false)
     try {
       const data = await searchListings(state, businessType)
       setResults(data)
@@ -328,6 +331,28 @@ export default function FindDeals() {
       toast.error('Search failed. Try again.')
     } finally {
       setSearching(false)
+    }
+  }
+
+  const handleSaveSearch = async () => {
+    if (!user || !results) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('saved_searches').insert({
+        user_id: user.id,
+        state,
+        business_type: businessType,
+        listing_count: results.listings?.length || 0,
+        search_summary: results.search_summary || '',
+        listings: results.listings || [],
+      })
+      if (error) throw error
+      setSearchSaved(true)
+      toast.success('Search saved to dashboard!')
+    } catch (err) {
+      toast.error('Failed to save search.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -420,6 +445,15 @@ export default function FindDeals() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="font-bold text-[#0A1628]">{results.total_found || results.listings?.length || 0} listings found in {state}</p>
+            </div>
+            <button
+              onClick={handleSaveSearch}
+              disabled={saving || searchSaved}
+              className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border transition-colors ${searchSaved ? 'border-green-300 bg-green-50 text-green-700' : 'border-[#0A1628] text-[#0A1628] hover:bg-[#0A1628] hover:text-white'}`}
+            >
+              {searchSaved ? <><CheckCircle size={14} />Saved</> : saving ? <><div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />Saving...</> : <><BookmarkPlus size={14} />Save to dashboard</>}
+            </button>
+            <div className="hidden">
               {results.search_summary && <p className="text-sm text-gray-500 mt-0.5">{results.search_summary}</p>}
             </div>
           </div>
