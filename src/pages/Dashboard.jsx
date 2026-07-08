@@ -247,10 +247,10 @@ export default function Dashboard() {
       ) : activeTab === 'pipeline' ? (
         <>
           {deals.length > 0 && (
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 flex-nowrap">
               {['all', 'evaluating', 'loi_submitted', 'under_contract', 'closed', 'passed'].map(f => (
                 <button key={f} onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === f ? 'bg-[#0A1628] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${filter === f ? 'bg-[#0A1628] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {f === 'all' ? 'All deals' : STATUS_CONFIG[f]?.label || f}
                 </button>
               ))}
