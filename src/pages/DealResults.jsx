@@ -36,8 +36,8 @@ function VerdictBanner({ verdict, score, recommendation }) {
     <div className={`${cfg.bg} text-white rounded-2xl p-6 mb-6`}>
       <div className="flex items-center gap-3 mb-2">
         <Icon size={28} />
-        <span className="font-black text-2xl tracking-wide">{cfg.label}</span>
-        {score > 0 && <span className="ml-auto text-3xl font-black opacity-80">{score}/100</span>}
+        <span className="font-black text-lg sm:text-2xl tracking-wide">{cfg.label}</span>
+        {score > 0 && <span className="ml-auto text-2xl sm:text-3xl font-black opacity-80">{score}/100</span>}
       </div>
       {recommendation && <p className="text-white/90 text-sm leading-relaxed">{recommendation}</p>}
     </div>
