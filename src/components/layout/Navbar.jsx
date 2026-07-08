@@ -58,7 +58,7 @@ export default function Navbar() {
                 className="flex items-center gap-1.5 bg-[#B22234] hover:bg-[#8f1b2a] text-white px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
               >
                 <PlusCircle size={15} />
-                <span>New Deal</span>
+                <span className="hidden sm:block">New Deal</span>
               </Link>
               <button
                 onClick={handleSignOut}
