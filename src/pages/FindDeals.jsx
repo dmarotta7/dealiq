@@ -199,8 +199,9 @@ Return ONLY valid JSON, no markdown:
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 5000,
-      system: 'You are a business broker. Return ONLY valid JSON. Start with { end with }. Revenue must be realistic relative to asking price — businesses sell at 3-8x earnings, not 1-2x.',
+      max_tokens: 6000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      system: 'You are a business broker with web search access. Search for real active listings, then return results as valid JSON only. Start response with { and end with }. Never use markdown.',
       messages: [{ role: 'user', content: prompt }]
     })
   })
