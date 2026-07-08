@@ -34,9 +34,6 @@ const DEFAULTS = {
   storage: storageDefaults,
 }
 
-// Build evaluation inputs from disclosed listing financials
-// Key principle: use 60-65% expense ratios and NO owner_sal add-back
-// The AI's cash_flow is already the seller's discretionary earnings
 function buildInputs(businessType, listing) {
   const defaults = DEFAULTS[businessType]
   const price = listing.asking_price || defaults.price
@@ -44,7 +41,6 @@ function buildInputs(businessType, listing) {
 
   if (businessType === 'carwash') {
     if (annual_revenue > 0) {
-      // Industry reality: expenses = 60-65% of revenue
       const total_exp = Math.round(annual_revenue * 0.62)
       const mem_revenue = Math.round(annual_revenue * 0.50)
       const retail_revenue = Math.round(annual_revenue * 0.45)
@@ -65,7 +61,6 @@ function buildInputs(businessType, listing) {
         mktg: Math.round(total_exp * 0.03),
         insur: Math.round(total_exp * 0.02),
         overhead: 0,
-        // No owner_sal — cash_flow from listing already reflects real earnings
         owner_sal: 0, personal: 0, onetime: 0,
         price,
         equip_res: Math.round(price * 0.01),
@@ -77,7 +72,6 @@ function buildInputs(businessType, listing) {
 
   if (businessType === 'laundromat') {
     if (annual_revenue > 0) {
-      // Laundromat: expenses 58-65% of revenue (utilities are massive)
       const total_exp = Math.round(annual_revenue * 0.62)
       const weekly_rev = Math.round(annual_revenue / 52)
       return {
@@ -104,18 +98,12 @@ function buildInputs(businessType, listing) {
   }
 
   if (businessType === 'storage') {
-    // Calculate from asking price at exactly 7% cap rate
     const target_noi = Math.round(price * 0.07)
     const units = defaults.total_units
     const occupancy = 87
-    // avg_rent calculated so net_rent (after vacancy) = target_gross
-    // net_rent = units * avg_rent * 12 * (occupancy/100)
-    // avg_rent = target_noi / 0.60 / (units * 12 * occupancy/100)
     const target_gross = target_noi / 0.60
     const avg_rent = Math.round(target_gross / (units * 12 * occupancy / 100))
-    // Actual net_rent after rounding
     const actual_net_rent = Math.round(units * avg_rent * 12 * occupancy / 100)
-    // Use other_opex as balancing item so NOI = exactly target_noi
     const base_exp_budget = Math.round(target_gross * 0.40)
     const taxes = Math.round(base_exp_budget * 0.28)
     const insurance = Math.round(base_exp_budget * 0.18)
@@ -124,7 +112,6 @@ function buildInputs(businessType, listing) {
     const maintenance = Math.round(base_exp_budget * 0.08)
     const marketing = Math.round(base_exp_budget * 0.04)
     const named_exp = taxes + insurance + management + utilities + maintenance + marketing
-    // other_opex absorbs any rounding so NOI lands at target
     const other_opex = Math.max(0, actual_net_rent - target_noi - named_exp)
     return {
       ...defaults,
@@ -148,10 +135,9 @@ function buildInputs(businessType, listing) {
   }
 
   if (businessType === 'apartment') {
-    // Always calculate from asking price at 6.5% cap rate — never trust AI cash_flow
     const target_noi = Math.round(price * 0.065)
-    const egi = Math.round(target_noi / 0.53)  // expenses = 47% of EGI
-    const gpr = Math.round(egi / 0.96)  // 4% vacancy + other income nets to EGI
+    const egi = Math.round(target_noi / 0.53)
+    const gpr = Math.round(egi / 0.96)
     const vacancy = Math.round(gpr * 0.07)
     const other_income = Math.round(gpr * 0.03)
     const total_exp = egi - target_noi
@@ -192,7 +178,6 @@ async function searchListings(state, businessType) {
     apartment: 'LoopNet.com and Crexi.com'
   }
 
-  // Revenue should be roughly 20-40% of asking price for realistic multiples
   const revenueGuide = {
     carwash: 'annual revenue is typically 25-50% of asking price (e.g. $750K asking = $200-380K revenue). Asking prices $300K-$3M.',
     laundromat: 'annual revenue is typically 30-60% of asking price (e.g. $400K asking = $120-240K revenue). Asking prices $150K-$1M.',
@@ -200,21 +185,21 @@ async function searchListings(state, businessType) {
     apartment: 'NOI (cap rate) is 5-8% of asking price. GPR is typically 10-16% of asking price. Asking prices $500K-$10M.'
   }
 
-  const prompt = `List 5 realistic ${typeLabels[businessType]} businesses for sale in ${state} based on market knowledge from ${sources[businessType]}.
+  const prompt = `List 10 realistic ${typeLabels[businessType]} businesses for sale in ${state} based on market knowledge from ${sources[businessType]}.
 
 CRITICAL: ${revenueGuide[businessType]}
 
-Return asking_price and annual_revenue that reflect realistic market multiples. Annual revenue must NOT be more than 60% of asking price for businesses.
+Return asking_price and annual_revenue that reflect realistic market multiples. Annual revenue must NOT be more than 60% of asking price for businesses. Spread the listings across different cities and price points throughout ${state}.
 
 Return ONLY valid JSON, no markdown:
-{"listings":[{"name":"Business name","city":"Specific city in ${state}","state":"${state}","asking_price":0,"annual_revenue":0,"cash_flow":0,"description":"2 sentence description of the business","key_details":["3","specific","facts"],"financials_disclosed":true,"url":""}],"search_summary":"Brief summary of market","total_found":5}`
+{"listings":[{"name":"Business name","city":"Specific city in ${state}","state":"${state}","asking_price":0,"annual_revenue":0,"cash_flow":0,"description":"2 sentence description of the business","key_details":["3","specific","facts"],"financials_disclosed":true,"url":""}],"search_summary":"Brief summary of market","total_found":10}`
 
   const response = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 3000,
+      max_tokens: 5000,
       system: 'You are a business broker. Return ONLY valid JSON. Start with { end with }. Revenue must be realistic relative to asking price — businesses sell at 3-8x earnings, not 1-2x.',
       messages: [{ role: 'user', content: prompt }]
     })
