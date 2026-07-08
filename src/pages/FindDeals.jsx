@@ -34,7 +34,7 @@ const DEFAULTS = {
   storage: storageDefaults,
 }
 
-function buildInputs(businessType, listing) {
+export function buildInputs(businessType, listing) {
   const defaults = DEFAULTS[businessType]
   const price = listing.asking_price || defaults.price
   const annual_revenue = listing.annual_revenue || 0
