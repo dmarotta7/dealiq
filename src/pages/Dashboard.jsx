@@ -250,7 +250,7 @@ export default function Dashboard() {
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2 flex-nowrap">
               {['all', 'evaluating', 'loi_submitted', 'under_contract', 'closed', 'passed'].map(f => (
                 <button key={f} onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${filter === f ? 'bg-[#0A1628] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex-shrink-0 whitespace-nowrap ${filter === f ? 'bg-[#0A1628] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {f === 'all' ? 'All deals' : STATUS_CONFIG[f]?.label || f}
                 </button>
               ))}
@@ -264,7 +264,7 @@ export default function Dashboard() {
                 const statusConfig = STATUS_CONFIG[deal.status] || STATUS_CONFIG.evaluating
                 return (
                   <div key={deal.id} className="card hover:shadow-md transition-shadow group">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-start gap-4">
                       <div className={`p-3 rounded-xl ${typeConfig.color} flex-shrink-0`}><Icon size={20} /></div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
