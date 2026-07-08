@@ -204,7 +204,7 @@ export default function Dashboard() {
         </div>
         <Link to="/evaluate" className="btn-primary flex items-center gap-2">
           <PlusCircle size={16} />
-          New deal
+          <span className="hidden sm:block">New deal</span>
         </Link>
       </div>
 
@@ -268,7 +268,7 @@ export default function Dashboard() {
                       <div className={`p-3 rounded-xl ${typeConfig.color} flex-shrink-0`}><Icon size={20} /></div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-[#0A1628] truncate">{deal.name || 'Unnamed Deal'}</h3>
+                          <h3 className="font-bold text-[#0A1628]">{deal.name || 'Unnamed Deal'}</h3>
                           {deal.verdict && <VerdictBadge verdict={deal.verdict} />}
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusConfig.color}`}>{statusConfig.label}</span>
                         </div>
