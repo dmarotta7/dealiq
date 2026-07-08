@@ -198,7 +198,7 @@ Return ONLY valid JSON, no markdown:
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 5000,
       system: 'You are a business broker. Return ONLY valid JSON. Start with { end with }. Revenue must be realistic relative to asking price — businesses sell at 3-8x earnings, not 1-2x.',
       messages: [{ role: 'user', content: prompt }]

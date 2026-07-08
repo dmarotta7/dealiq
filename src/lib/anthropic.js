@@ -216,7 +216,7 @@ export async function pullLocationData(address, businessType) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: 'You are a commercial real estate analyst. Search for location data and return ONLY valid JSON, no markdown.',
@@ -237,7 +237,7 @@ export async function askDealAssistant(dealData, question, history) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: `You are Deal IQ's AI deal assistant. Be direct, honest, and reference specific numbers from this deal data: ${JSON.stringify(dealData)}`,
         messages: [...history.map(h => ({ role: h.role, content: h.content })), { role: 'user', content: question }]
