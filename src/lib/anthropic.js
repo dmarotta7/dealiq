@@ -239,7 +239,7 @@ export async function askDealAssistant(dealData, question, history) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
-        system: `You are Deal IQ's AI deal assistant. Be direct, honest, and reference specific numbers from this deal data: ${JSON.stringify(dealData)}`,
+        system: `You are Deal IQ's AI deal assistant. Be direct, honest, and reference specific numbers from this deal data: ${JSON.stringify(dealData)}. Respond in plain conversational text only. No markdown, no headers, no bullet points with asterisks, no bold formatting. Use plain sentences and numbers only.`,
         messages: [...history.map(h => ({ role: h.role, content: h.content })), { role: 'user', content: question }]
       })
     })
