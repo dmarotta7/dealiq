@@ -244,7 +244,15 @@ export async function askDealAssistant(dealData, question, history) {
       })
     })
     const data = await response.json()
-    return data.content?.[0]?.text || 'Unable to process question.'
+    const raw = data.content?.[0]?.text || 'Unable to process question.'
+    return raw
+      .replace(/#{1,6}\s+/g, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/---/g, '')
+      .replace(/\|/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
   } catch {
     return 'Error connecting to AI assistant.'
   }
